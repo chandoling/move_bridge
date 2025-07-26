@@ -13,7 +13,12 @@ dotenv.config();
 
 const MOVEMENT_MAINNET_CONFIG = new AptosConfig({
   network: Network.CUSTOM,
-  fullnode: 'https://mainnet.movementnetwork.xyz/v1',
+  fullnode: 'https://rpc.ankr.com/http/movement_mainnet/v1',
+  clientConfig: {
+    HEADERS: {
+      'Content-Type': 'application/json',
+    }
+  }
 });
 
 // Convert Ethereum address to bytes32 format for LayerZero
@@ -26,6 +31,7 @@ function addressToBytes32(address: string): string {
 // Check rate limit capacity
 async function checkRateLimit(aptos: Aptos, endpointId: number): Promise<number> {
   try {
+    const startTime = Date.now();
     const result = await aptos.view({
       payload: {
         function: "0x7e4fd97ef92302eea9b10f74be1d96fb1f1511cf7ed28867b0144ca89c6ebc3c::move_oft_adapter::rate_limit_capacity",
@@ -33,10 +39,13 @@ async function checkRateLimit(aptos: Aptos, endpointId: number): Promise<number>
         functionArguments: [endpointId]
       }
     });
+    const endTime = Date.now();
+    console.log(`✅ Rate limit check completed in ${endTime - startTime}ms`);
     
     return Number(result[0]);
   } catch (error) {
     console.error("Error checking rate limit:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
     return 0;
   }
 }
@@ -44,6 +53,7 @@ async function checkRateLimit(aptos: Aptos, endpointId: number): Promise<number>
 // Check account balance
 async function checkAccountBalance(aptos: Aptos, accountAddress: string): Promise<number> {
   try {
+    const startTime = Date.now();
     const result = await aptos.view({
       payload: {
         function: "0x1::coin::balance",
@@ -51,10 +61,13 @@ async function checkAccountBalance(aptos: Aptos, accountAddress: string): Promis
         functionArguments: [accountAddress]
       }
     });
+    const endTime = Date.now();
+    console.log(`✅ Balance check completed in ${endTime - startTime}ms`);
     
     return Number(result[0]);
   } catch (error) {
     console.error("Error checking balance:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
     return 0;
   }
 }
@@ -157,9 +170,11 @@ async function monitorAndTrigger() {
   while (true) { // Continue forever
     try {
       cycleCount++;
+      console.log(`🔄 Cycle #${cycleCount} starting...`);
       
       // Check account balance every 10 cycles
       if (cycleCount % 10 === 0) {
+        console.log(`💳 Checking balance...`);
         const balance = await checkAccountBalance(aptos, account.accountAddress.toString());
         const balanceInTokens = balance / 100000000;
         
@@ -172,6 +187,7 @@ async function monitorAndTrigger() {
         }
       }
       
+      console.log(`📊 Checking capacity...`);
       const capacity = await checkRateLimit(aptos, ENDPOINT_ID);
       const timestamp = new Date().toLocaleTimeString();
       const tokensAmount = capacity / 100000000;
