@@ -13,7 +13,7 @@ dotenv.config();
 
 const MOVEMENT_MAINNET_CONFIG = new AptosConfig({
   network: Network.CUSTOM,
-  fullnode: 'https://rpc.ankr.com/http/movement_mainnet/v1',
+  fullnode: 'https://full.mainnet.movementinfra.xyz/v1',
   clientConfig: {
     HEADERS: {
       'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ async function checkAccountBalance(aptos: Aptos, accountAddress: string): Promis
 }
 
 // Execute transaction
-async function executeTransaction(aptos: Aptos, account: Account, threshold: number): Promise<void> {
+async function executeTransaction(aptos: Aptos, account: Account, amountToSend: number): Promise<void> {
   const ETHEREUM_MAINNET_ENDPOINT_ID = 30101;
   const RECIPIENT_ETH_ADDRESS = process.env.RECIPIENT_ETH_ADDRESS;
   
@@ -81,8 +81,8 @@ async function executeTransaction(aptos: Aptos, account: Account, threshold: num
     throw new Error("RECIPIENT_ETH_ADDRESS not found in .env file");
   }
   
-  // Use the threshold amount (in smallest units)
-  const amountToSend = threshold.toString();
+  // Use the provided amount (in smallest units)
+  const amountString = amountToSend.toString();
   
   // Convert recipient address to bytes32 format
   const recipientBytes32 = addressToBytes32(RECIPIENT_ETH_ADDRESS);
@@ -93,8 +93,8 @@ async function executeTransaction(aptos: Aptos, account: Account, threshold: num
     functionArguments: [
       ETHEREUM_MAINNET_ENDPOINT_ID,
       Array.from(Buffer.from(recipientBytes32.slice(2), "hex")), // Remove 0x prefix
-      amountToSend,
-      amountToSend,
+      amountString,
+      amountString,
       Array.from(Buffer.from("00030100110100000000000000000000000000061a80", "hex")),
       Array.from(Buffer.from("00", "hex")),
       Array.from(Buffer.from("00", "hex")),
@@ -104,7 +104,8 @@ async function executeTransaction(aptos: Aptos, account: Account, threshold: num
   };
   
   try {
-    console.log(`🚀 Executing transaction with threshold amount: ${amountToSend}`);
+    const tokensAmount = amountToSend / 100000000;
+    console.log(`🚀 Executing transaction with amount: ${tokensAmount.toLocaleString()} tokens (${amountString} units)`);
     
     const transaction = await aptos.transaction.build.simple({
       sender: account.accountAddress,
@@ -204,11 +205,12 @@ async function monitorAndTrigger() {
       if (capacity >= THRESHOLD) {
         transactionCount++;
         console.log(`\n🎉 THRESHOLD REACHED! (#${transactionCount})`);
-        console.log(`💰 Capacity: ${tokensAmount.toLocaleString()} tokens`);
-        console.log("🚀 Triggering transaction...\n");
+        console.log(`💰 Current Capacity: ${tokensAmount.toLocaleString()} tokens`);
+        console.log(`🎯 Threshold: ${(THRESHOLD / 100000000).toLocaleString()} tokens`);
+        console.log("🚀 Triggering transaction with full capacity...\n");
         
         try {
-          await executeTransaction(aptos, account, THRESHOLD);
+          await executeTransaction(aptos, account, capacity);
           console.log(`\n✅ Transaction #${transactionCount} completed successfully!`);
           console.log("🔄 Continuing to monitor for next opportunity...\n");
         } catch (error) {
