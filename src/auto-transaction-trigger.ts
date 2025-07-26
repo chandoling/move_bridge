@@ -41,6 +41,24 @@ async function checkRateLimit(aptos: Aptos, endpointId: number): Promise<number>
   }
 }
 
+// Check account balance
+async function checkAccountBalance(aptos: Aptos, accountAddress: string): Promise<number> {
+  try {
+    const result = await aptos.view({
+      payload: {
+        function: "0x1::coin::balance",
+        typeArguments: ["0x1::aptos_coin::AptosCoin"],
+        functionArguments: [accountAddress]
+      }
+    });
+    
+    return Number(result[0]);
+  } catch (error) {
+    console.error("Error checking balance:", error);
+    return 0;
+  }
+}
+
 // Execute transaction
 async function executeTransaction(aptos: Aptos, account: Account, threshold: number): Promise<void> {
   const ETHEREUM_MAINNET_ENDPOINT_ID = 30101;
@@ -137,11 +155,23 @@ async function monitorAndTrigger() {
 
   while (true) { // Continue forever
     try {
+      // Check account balance
+      const balance = await checkAccountBalance(aptos, account.accountAddress.toString());
+      const balanceInTokens = balance / 100000000;
+      
+      if (balanceInTokens <= 1000) {
+        console.log(`\n⚠️  WARNING: Account balance is too low!`);
+        console.log(`💰 Current balance: ${balanceInTokens.toLocaleString()} tokens`);
+        console.log(`🛑 Minimum required: 1,000 tokens`);
+        console.log(`❌ Stopping program to prevent insufficient funds...`);
+        process.exit(0);
+      }
+      
       const capacity = await checkRateLimit(aptos, ENDPOINT_ID);
       const timestamp = new Date().toLocaleTimeString();
       const tokensAmount = capacity / 100000000;
       
-      console.log(`[${timestamp}] Capacity: ${tokensAmount.toLocaleString()} tokens (${capacity.toLocaleString()} units)`);
+      console.log(`[${timestamp}] Capacity: ${tokensAmount.toLocaleString()} tokens | Balance: ${balanceInTokens.toLocaleString()} tokens`);
       
       if (capacity >= THRESHOLD) {
         transactionCount++;
