@@ -220,11 +220,11 @@ async function monitorAndTrigger() {
       }
       
       // Wait 3 seconds before next check
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
     } catch (error) {
       console.error(`⚠️  [${new Date().toLocaleTimeString()}] Monitor error:`, error);
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
 }
