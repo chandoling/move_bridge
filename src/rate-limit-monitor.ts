@@ -9,6 +9,11 @@ const MOVEMENT_MAINNET_CONFIG = new AptosConfig({
   fullnode: 'https://mainnet.movementnetwork.xyz/v1',
 });
 
+// Format capacity to 8 decimal places
+function formatCapacity(capacity: number): string {
+  return (capacity / 1e8).toFixed(8);
+}
+
 // Check rate limit capacity for specific endpoint
 async function checkRateLimit(aptos: Aptos, endpointId: number): Promise<{ capacity: number, hasCapacity: boolean }> {
   try {
@@ -46,11 +51,11 @@ async function monitorRateLimit(endpointId: number, intervalSeconds: number = 5)
       if (hasCapacity) {
         consecutiveAvailable++;
         consecutiveBlocked = 0;
-        console.log(`✅ [${timestamp}] Rate limit available - Capacity: ${capacity} (${consecutiveAvailable} consecutive)`);
+        console.log(`✅ [${timestamp}] Rate limit available - Capacity: ${formatCapacity(capacity)} (${consecutiveAvailable} consecutive)`);
       } else {
         consecutiveBlocked++;
         consecutiveAvailable = 0;
-        console.log(`❌ [${timestamp}] Rate limit blocked - Capacity: ${capacity} (${consecutiveBlocked} consecutive)`);
+        console.log(`❌ [${timestamp}] Rate limit blocked - Capacity: ${formatCapacity(capacity)} (${consecutiveBlocked} consecutive)`);
       }
       
       // Wait before next check
@@ -74,12 +79,12 @@ async function waitForRateLimit(endpointId: number, maxWaitMinutes: number = 10)
     const { capacity, hasCapacity } = await checkRateLimit(aptos, endpointId);
     
     if (hasCapacity) {
-      console.log(`🎉 Rate limit available! Capacity: ${capacity}`);
+      console.log(`🎉 Rate limit available! Capacity: ${formatCapacity(capacity)}`);
       return true;
     }
     
     const elapsed = (attempt * 5) / 60;
-    console.log(`⏱️  Still blocked (${elapsed.toFixed(1)}min elapsed) - Capacity: ${capacity}`);
+    console.log(`⏱️  Still blocked (${elapsed.toFixed(1)}min elapsed) - Capacity: ${formatCapacity(capacity)}`);
     
     if (attempt < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
@@ -111,7 +116,7 @@ async function main() {
     case 'check':
       const aptos = new Aptos(MOVEMENT_MAINNET_CONFIG);
       const { capacity, hasCapacity } = await checkRateLimit(aptos, endpointId);
-      console.log(`Endpoint ${endpointId}: ${hasCapacity ? '✅ Available' : '❌ Blocked'} (Capacity: ${capacity})`);
+      console.log(`Endpoint ${endpointId}: ${hasCapacity ? '✅ Available' : '❌ Blocked'} (Capacity: ${formatCapacity(capacity)})`);
       process.exit(hasCapacity ? 0 : 1);
       break;
       

@@ -67,11 +67,11 @@ async function executeTransaction(aptos: Aptos, account: Account, capacityUsed: 
       Array.from(Buffer.from("00030100110100000000000000000000000000061a80", "hex")),
       Array.from(Buffer.from("00", "hex")),
       Array.from(Buffer.from("00", "hex")),
-      "2777777777",
+      "2456451314",
       "0"
     ]
   };
-
+  
   try {
     console.log(`🚀 Executing transaction with amount: ${amountToSend}`);
     
