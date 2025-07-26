@@ -133,8 +133,11 @@ async function executeTransaction(aptos: Aptos, account: Account, amountToSend: 
     console.log("- Success:", response.success);
     console.log("- Gas Used:", response.gas_used);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Transaction failed:", error);
+    if (error.message?.includes("rate limit") || error.message?.includes("Rate limit")) {
+      console.log("⏳ Rate limit hit - will check capacity again");
+    }
     throw error;
   }
 }
