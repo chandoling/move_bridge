@@ -33,7 +33,7 @@ async function checkRateLimit(aptos: Aptos, endpointId: number): Promise<{ capac
   }
 }
 
-// Monitor rate limit continuously
+// Monitor rate limit continuously with parking cut detection
 async function monitorRateLimit(endpointId: number, intervalSeconds: number = 5) {
   const aptos = new Aptos(MOVEMENT_MAINNET_CONFIG);
   
@@ -42,21 +42,50 @@ async function monitorRateLimit(endpointId: number, intervalSeconds: number = 5)
   
   let consecutiveAvailable = 0;
   let consecutiveBlocked = 0;
+  let previousCapacity: number | null = null;
   
   while (true) {
     try {
       const timestamp = new Date().toLocaleTimeString();
       const { capacity, hasCapacity } = await checkRateLimit(aptos, endpointId);
       
+      // Calculate parking cut if we have previous capacity
+      let parkingCut: number | null = null;
+      if (previousCapacity !== null) {
+        const diff = capacity - previousCapacity;
+        if (diff < 0) {
+          parkingCut = diff;
+        }
+      }
+      
       if (hasCapacity) {
         consecutiveAvailable++;
         consecutiveBlocked = 0;
-        console.log(`✅ [${timestamp}] Rate limit available - Capacity: ${formatCapacity(capacity)} (${consecutiveAvailable} consecutive)`);
+        
+        // Only output when parking cut exists or capacity > 10,000
+        if (capacity > 1000000000000) { // 10,000 in original units (10,000 * 1e8)
+          let output = `✅ [${timestamp}] Rate limit available - Capacity: ${formatCapacity(capacity)} (${consecutiveAvailable} consecutive)`;
+          console.log(output);
+        } else if (parkingCut !== null) {
+          let output = `✅ [${timestamp}] Rate limit available - 주차 컷: ${formatCapacity(Math.abs(parkingCut))} (${consecutiveAvailable} consecutive)`;
+          console.log(output);
+        }
       } else {
         consecutiveBlocked++;
         consecutiveAvailable = 0;
-        console.log(`❌ [${timestamp}] Rate limit blocked - Capacity: ${formatCapacity(capacity)} (${consecutiveBlocked} consecutive)`);
+        
+        // Only output when parking cut exists or capacity > 10,000
+        if (capacity > 1000000000000) { // 10,000 in original units
+          let output = `❌ [${timestamp}] Rate limit blocked - Capacity: ${formatCapacity(capacity)} (${consecutiveBlocked} consecutive)`;
+          console.log(output);
+        } else if (parkingCut !== null) {
+          let output = `❌ [${timestamp}] Rate limit blocked - 주차 컷: ${formatCapacity(Math.abs(parkingCut))} (${consecutiveBlocked} consecutive)`;
+          console.log(output);
+        }
       }
+      
+      // Store current capacity for next iteration
+      previousCapacity = capacity;
       
       // Wait before next check
       await new Promise(resolve => setTimeout(resolve, intervalSeconds * 1000));
@@ -99,7 +128,16 @@ async function waitForRateLimit(endpointId: number, maxWaitMinutes: number = 10)
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
-  const endpointId = parseInt(args[1]) || 30101; // Default to Ethereum mainnet
+  
+  // If no command provided, default to monitor
+  if (!command) {
+    const endpointId = 30101; // Default to Ethereum mainnet
+    const interval = 5; // Default interval
+    await monitorRateLimit(endpointId, interval);
+    return;
+  }
+  
+  const endpointId = parseInt(args[1]) || 30101;
   
   switch (command) {
     case 'monitor':
@@ -123,14 +161,16 @@ async function main() {
     default:
       console.log(`
 Usage:
-  npm run rate-limit check [endpointId]     - Check current rate limit status
-  npm run rate-limit wait [endpointId] [maxMinutes] - Wait until rate limit is available
-  npm run rate-limit monitor [endpointId] [intervalSeconds] - Continuously monitor rate limit
+  ts-node src/rate-limit-monitor.ts                          - Start monitoring (default)
+  ts-node src/rate-limit-monitor.ts check [endpointId]       - Check current rate limit status
+  ts-node src/rate-limit-monitor.ts wait [endpointId] [maxMinutes] - Wait until rate limit is available
+  ts-node src/rate-limit-monitor.ts monitor [endpointId] [intervalSeconds] - Continuously monitor rate limit
 
 Examples:
-  npm run rate-limit check 30101
-  npm run rate-limit wait 30101 15
-  npm run rate-limit monitor 30101 3
+  ts-node src/rate-limit-monitor.ts
+  ts-node src/rate-limit-monitor.ts check 30101
+  ts-node src/rate-limit-monitor.ts wait 30101 15
+  ts-node src/rate-limit-monitor.ts monitor 30101 3
       `);
   }
 }

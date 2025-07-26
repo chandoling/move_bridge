@@ -42,7 +42,7 @@ async function checkRateLimit(aptos: Aptos, endpointId: number): Promise<number>
 }
 
 // Execute transaction
-async function executeTransaction(aptos: Aptos, account: Account, capacityUsed: number): Promise<void> {
+async function executeTransaction(aptos: Aptos, account: Account, threshold: number): Promise<void> {
   const ETHEREUM_MAINNET_ENDPOINT_ID = 30101;
   const RECIPIENT_ETH_ADDRESS = process.env.RECIPIENT_ETH_ADDRESS;
   
@@ -50,8 +50,8 @@ async function executeTransaction(aptos: Aptos, account: Account, capacityUsed: 
     throw new Error("RECIPIENT_ETH_ADDRESS not found in .env file");
   }
   
-  // Use the detected capacity as the amount (in smallest units)
-  const amountToSend = capacityUsed.toString();
+  // Use the threshold amount (in smallest units)
+  const amountToSend = threshold.toString();
   
   // Convert recipient address to bytes32 format
   const recipientBytes32 = addressToBytes32(RECIPIENT_ETH_ADDRESS);
@@ -73,7 +73,7 @@ async function executeTransaction(aptos: Aptos, account: Account, capacityUsed: 
   };
   
   try {
-    console.log(`🚀 Executing transaction with amount: ${amountToSend}`);
+    console.log(`🚀 Executing transaction with threshold amount: ${amountToSend}`);
     
     const transaction = await aptos.transaction.build.simple({
       sender: account.accountAddress,
@@ -150,7 +150,7 @@ async function monitorAndTrigger() {
         console.log("🚀 Triggering transaction...\n");
         
         try {
-          await executeTransaction(aptos, account, capacity);
+          await executeTransaction(aptos, account, THRESHOLD);
           console.log(`\n✅ Transaction #${transactionCount} completed successfully!`);
           console.log("🔄 Continuing to monitor for next opportunity...\n");
         } catch (error) {
