@@ -148,30 +148,42 @@ async function monitorAndTrigger() {
   console.log(`📍 Account: ${account.accountAddress.toString()}`);
   console.log(`🎯 Threshold: ${thresholdTokens} tokens (${THRESHOLD.toLocaleString()} units)`);
   console.log(`🌐 Endpoint: ${ENDPOINT_ID}`);
-  console.log("⏰ Checking every 1 second...");
+  console.log("⏰ Checking every 3 seconds...");
   console.log("🔄 Will continue monitoring after each transaction\n");
 
   let transactionCount = 0;
+  let cycleCount = 0;
 
   while (true) { // Continue forever
     try {
-      // Check account balance
-      const balance = await checkAccountBalance(aptos, account.accountAddress.toString());
-      const balanceInTokens = balance / 100000000;
+      cycleCount++;
       
-      if (balanceInTokens <= 1000) {
-        console.log(`\n⚠️  WARNING: Account balance is too low!`);
-        console.log(`💰 Current balance: ${balanceInTokens.toLocaleString()} tokens`);
-        console.log(`🛑 Minimum required: 1,000 tokens`);
-        console.log(`❌ Stopping program to prevent insufficient funds...`);
-        process.exit(0);
+      // Check account balance every 10 cycles
+      if (cycleCount % 10 === 0) {
+        const balance = await checkAccountBalance(aptos, account.accountAddress.toString());
+        const balanceInTokens = balance / 100000000;
+        
+        if (balanceInTokens <= 1000) {
+          console.log(`\n⚠️  WARNING: Account balance is too low!`);
+          console.log(`💰 Current balance: ${balanceInTokens.toLocaleString()} tokens`);
+          console.log(`🛑 Minimum required: 1,000 tokens`);
+          console.log(`❌ Stopping program to prevent insufficient funds...`);
+          process.exit(0);
+        }
       }
       
       const capacity = await checkRateLimit(aptos, ENDPOINT_ID);
       const timestamp = new Date().toLocaleTimeString();
       const tokensAmount = capacity / 100000000;
       
-      console.log(`[${timestamp}] Capacity: ${tokensAmount.toLocaleString()} tokens | Balance: ${balanceInTokens.toLocaleString()} tokens`);
+      // Show balance info every 10 cycles when we check it
+      if (cycleCount % 10 === 0) {
+        const balance = await checkAccountBalance(aptos, account.accountAddress.toString());
+        const balanceInTokens = balance / 100000000;
+        console.log(`[${timestamp}] Capacity: ${tokensAmount.toLocaleString()} tokens | Balance: ${balanceInTokens.toLocaleString()} tokens`);
+      } else {
+        console.log(`[${timestamp}] Capacity: ${tokensAmount.toLocaleString()} tokens`);
+      }
       
       if (capacity >= THRESHOLD) {
         transactionCount++;
@@ -189,12 +201,12 @@ async function monitorAndTrigger() {
         }
       }
       
-      // Wait 1 second before next check
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait 3 seconds before next check
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
     } catch (error) {
       console.error(`⚠️  [${new Date().toLocaleTimeString()}] Monitor error:`, error);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
 }
