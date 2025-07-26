@@ -8,7 +8,7 @@ const ETH_RPC = process.env.ETH_RPC;
 const UPBIT_ADDRESS = process.env.UPBIT_ADDRESS;
 const TOKEN_ADDRESS = '0x3073f7aAA4DB83f95e9FFf17424F71D4751a3073';
 const TOKEN_DECIMALS = 8;
-const MIN_BALANCE = ethers.parseUnits('300', TOKEN_DECIMALS);
+const MIN_BALANCE = ethers.parseUnits('1', TOKEN_DECIMALS);
 const CHECK_INTERVAL = 3000; // 3 seconds
 
 const ERC20_ABI = [
@@ -30,7 +30,7 @@ async function main() {
     console.log(`Monitoring wallet: ${wallet.address}`);
     console.log(`Token address: ${TOKEN_ADDRESS}`);
     console.log(`Destination: ${UPBIT_ADDRESS}`);
-    console.log(`Minimum balance: 5 tokens`);
+    console.log(`Minimum balance: 1 tokens`);
 
     while (true) {
         try {
@@ -40,9 +40,10 @@ async function main() {
             if (balance >= MIN_BALANCE) {
                 console.log('Balance meets minimum threshold. Initiating transfer...');
                 
-                const feeData = await provider.getFeeData();
-                const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || ethers.parseUnits('2', 'gwei');
-                const maxFeePerGas = (feeData.maxFeePerGas || ethers.parseUnits('30', 'gwei')) + maxPriorityFeePerGas;
+                const block = await provider.getBlock('latest');
+                const baseFeePerGas = block?.baseFeePerGas || ethers.parseUnits('20', 'gwei');
+                const maxPriorityFeePerGas = ethers.parseUnits('2', 'gwei');
+                const maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas;
 
                 const gasEstimate = await tokenContract.transfer.estimateGas(UPBIT_ADDRESS, balance);
                 const gasLimit = gasEstimate * 120n / 100n; // 20% buffer
